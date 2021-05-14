@@ -2,9 +2,9 @@
 ## DGMD E-17 - Brian Bauer
 
 ## Histogram of Oriented Gradients (HOG)
-Explain how (and identify where) you extracted HOG features from the training images.
-Explain how you settled on your final choice of HOG parameters.
-Describe how (and identify where) you trained a classifier using your selected HOG features (and color features if you used them)
+The SciKit Image module contains a method for extracting HOG features from an image.  There are a number of parameters that are provided.  First, the number of orientations was set to 9 for this project.  The HOG method groups the gradient directions into 9 histogram buckets, each covering 40 degrees of the circle.  The number of pixels per cell was set to 8, with 2 cells per block.  Since the training data was 64 by 64 pixel images, that means that each image consists of 4 square blocks.  This choice in parameters should allow for further refinement and optimization of this portion of the algorithm, as each block can be divided in half multiple times and still be squares.
+
+In addition to the HOG features, I create features using the image itself.  The NumPy ravel function flattens a 2-dimensional array into a single dimension, and this is used to turn the RGB/HSV/etc values into an array.  I also construct histograms of the color channels of the images and concatenate them together.  The combination of these two feature sets seems to help the classifier understand the colors that are most commonly seen on cars yet not on roads.
 
 I created a python program ```train_classifier.py``` that takes a single command - the color space to use.  It starts by generating a list of all car images and non-car images.  Each image is transformed into the desired color space and the features are extracted (described above).  Each car image is labeled with a 1 and the non-car images are labeled as 0.
 
@@ -32,18 +32,17 @@ How did you optimize the performance of your classifier?
 Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video.
 Describe how (and identify where) you implemented some kind of filter for false positives and some method for combining overlapping bounding boxes.
 
+## Run The Vehicle Tracking Code
+```
+python3 vehicle_tracking.py -i <input file (image or video)> -c <color space (RGB is default)> -o <output file>
+```
+
+## Train The Classifier
+```
+python3 train_classifier.py <color space>
+```
+
 ## Discussion
 Briefly discuss any problems/issues you faced in your implementation of this project.
 Where will your pipeline likely fail?
 What could you do to make it more robust?
-
-
-### Goal
-Write a software pipeline to identify vehicles from a front-facing camera on a car.
-
-### Notes on Tips and Tricks
-1. Extract HOG features just once for a region of interest
-1. Make sure images are scaled correctly
-    - All images read during training and classifying are being read in the 0 to 255 scale
-1. Be sure to normalize training data
-1. Random shuffling of data
