@@ -9,20 +9,6 @@ from scipy.ndimage.measurements import label
 from skimage.feature import hog
 import common
 
-with open('feature_scaler.pkl', 'rb') as fid:
-  feature_scaler = pickle.load(fid)
-
-with open('classifier.pkl', 'rb') as fid:
-  svc_classifier = pickle.load(fid)
-
-def convert_color(img, conv='RGB2YCrCb'):
-  if conv == 'RGB2YCrCb':
-    return cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
-  if conv == 'BGR2YCrCb':
-    return cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
-  if conv == 'RGB2LUV':
-    return cv2.cvtColor(img, cv2.COLOR_RGB2LUV)
-
 def slide_window(img, x_start_stop=[None, None], y_start_stop=[None, None], 
                  xy_window=(64, 64), xy_overlap=(0.5, 0.5)):
    
@@ -51,7 +37,7 @@ def slide_window(img, x_start_stop=[None, None], y_start_stop=[None, None],
             window_list.append(((x_start, y_start), (x1, y1)))
     return window_list
 
-def find_cars(image, windows):
+def find_cars(image, windows, color_space):
     car_seen_windows = []
     for window in windows:
         start = window[0]
@@ -60,7 +46,7 @@ def find_cars(image, windows):
         
         if(cropped_image.shape[1] == cropped_image.shape[0] and cropped_image.shape[1] != 0):
             cropped_image = cv2.resize(cropped_image, (64, 64))
-            features = common.extract_features(cropped_image)
+            features = common.extract_features(cropped_image, color_space)
             normalized_features = feature_scaler.transform([features])
         
             prediction = svc_classifier.predict(normalized_features)
@@ -69,67 +55,57 @@ def find_cars(image, windows):
                 
     return car_seen_windows
 
-def find_cars2(image, windows):
+#
+#   Extract all HOG features at once, and then
+#
+def find_cars3(image, windows, cspace):
   car_seen_windows = []
-  scale = 1.5
 
-  first_window = windows[0]
-  last_window = windows[len(windows)-1]
-  top_left = first_window[0]
-  bottom_right = last_window[1]
+  top_left = windows[0][0]
+  bottom_right = windows[len(windows)-1][1]
 
   region_of_interest = image[top_left[1]:bottom_right[1],top_left[0]:bottom_right[0]]
-  print("Region of interest shape")
-  print(region_of_interest.shape)
-  print("Pix per cell %d cell per block %d"%(pix_per_cell,cell_per_block))
 
-  # Define blocks and steps as above
-  nxblocks = (region_of_interest.shape[1] // pix_per_cell) - cell_per_block + 1
-  nyblocks = (region_of_interest.shape[0] // pix_per_cell) - cell_per_block + 1 
-  nfeat_per_block = orient*cell_per_block**2
-  print("nxblocks %d nyblocks %d nfeat_per_block %d"%(nxblocks,nyblocks,nfeat_per_block))
+  nxblocks = (region_of_interest.shape[1] // 8) - 1
+  nyblocks = (region_of_interest.shape[0] // 8) - 1
+  nxsteps = (nxblocks - 7) // 2
+  nysteps = (nyblocks - 8) // 2
 
-  cf0 = extract_hog_features(region_of_interest[:,:,0])
-  cf1 = extract_hog_features(region_of_interest[:,:,1])
-  cf2 = extract_hog_features(region_of_interest[:,:,2])
+  ch0 = common.extract_hog_features(region_of_interest[:,:,0])
+  ch1 = common.extract_hog_features(region_of_interest[:,:,1])
+  ch2 = common.extract_hog_features(region_of_interest[:,:,2])
 
-  # 64 was the orginal sampling rate, with 8 cells and 8 pix per cell
-  window = (first_window[1][0]-first_window[0][0])
-  nblocks_per_window = (window // pix_per_cell) - cell_per_block + 1
-  print("nblocks_per_window %d"%(nblocks_per_window))
-  cells_per_step = 2  # Instead of overlap, define how many cells to step
-  nxsteps = (nxblocks - nblocks_per_window) // cells_per_step
-  nysteps = (nyblocks - nblocks_per_window) // cells_per_step
-
-  print(cf2.shape)
-  print("nxsteps %d nysteps %d"%(nxsteps,nysteps))
   for xb in range(nxsteps):
     for yb in range(nysteps):
-      ypos = yb*cells_per_step
-      xpos = xb*cells_per_step
+      ypos = yb*2
+      xpos = xb*2
 
-      # Extract HOG for this patch
-      hog_feat1 = cf0[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel() 
-      hog_feat2 = cf1[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel() 
-      hog_feat3 = cf2[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel() 
-      hog_features = np.hstack((hog_feat1, hog_feat2, hog_feat3))
+      f0 = ch0[ypos:ypos+7, xpos:xpos+7]
+      f1 = ch1[ypos:ypos+7, xpos:xpos+7]
+      f2 = ch2[ypos:ypos+7, xpos:xpos+7]
+
+      xleft = xpos*8
+      ytop = ypos*8
+
+      cropped_image = region_of_interest[ytop:ytop+64, xleft:xleft+64]
+
+      spatial_binned_features = common.bin_spatial(cropped_image, color_space=cspace, size=(32, 32))
+      _, _, _, _, hist_features = common.extract_color_histogram_features(cropped_image)
+      hog_features = list()
+      hog_features.append(np.ravel(f0))
+      hog_features.append(np.ravel(f1))
+      hog_features.append(np.ravel(f2))
       raveled_hog = np.ravel(hog_features)
-      
-      xleft = xpos*pix_per_cell
-      ytop = ypos*pix_per_cell
-
-      # Extract the image patch
-      subimg = cv2.resize(region_of_interest[ytop:ytop+window, xleft:xleft+window], (64,64))
-      spatial_binned_features = bin_spatial(subimg)
-      rhist, ghist, bhist, bin_centers, hist_features = extract_color_histogram_features(subimg)
-
       all_features = np.concatenate((spatial_binned_features, hist_features, raveled_hog))
 
       normalized_features = feature_scaler.transform([all_features])
-
+        
       prediction = svc_classifier.predict(normalized_features)
       if(prediction == 1):
-        car_seen_windows.append(((xleft, ytop), (xleft+window, ytop+window)))
+        y0 = top_left[1] + ytop
+        x0 = top_left[0] + xleft
+        window = ((x0, y0), (x0+64, y0+64))
+        car_seen_windows.append(window)
               
   return car_seen_windows
 
@@ -172,10 +148,18 @@ def apply_threshold(heatmap, threshold):
   # Return thresholded map
   return heatmap
   
-def process_image(image):
-  windows_with_cars = find_cars(image, slide_window(image))
+#
+# Process a single image or a frame of video
+#
+#   Find all the windows that the classifier has predicted
+#     contain cars.  Than apply the heat map and draw
+#     a rectangle around the identified cars.
+#
+def process_image(image, color_space):
+  windows_with_cars = find_cars(image, slide_window(image), color_space)
   heat = np.zeros_like(image[:,:,0]).astype(np.float)
   heat = add_heat(heat, windows_with_cars)
+  heat = apply_threshold(heat, 2)
   heatmap = np.clip(heat, 0, 255)
   labels = label(heatmap)
   return draw_labeled_bboxes(np.copy(image), labels)
@@ -184,21 +168,17 @@ def process_image(image):
 # handle_image runs the pipeline on a single, undistorted image
 #
 #
-def handle_image(fileName, output_dir):
+def handle_image(fileName, output_dir, color_space):
   # Get the image
   image = cv2.imread(fileName)
   image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-  processed_image = process_image(image_rgb)
+  processed_image = process_image(image_rgb, color_space)
   
   if output_dir is None:
-    #cv2.imshow('Lane Lines', processed_image)
     plt.imshow(processed_image)
-    
     print('Press any key to dismiss')
     plt.show()
-    # Wait for the user to press any key
-    #cv2.waitKey(0)
   else:
     # Save the image to the output_dir
     output_file = os.path.join(output_dir, os.path.basename(fileName))
@@ -210,7 +190,7 @@ def handle_image(fileName, output_dir):
 # handle_video runs the pipeline on each undistorted frame of a video file
 #
 #
-def handle_video(fileName):
+def handle_video(fileName, color_space):
   # Create a VideoCapture object and read from input file
   # If the input is the camera, pass 0 instead of the video file name
   cap = cv2.VideoCapture(fileName)
@@ -218,9 +198,6 @@ def handle_video(fileName):
   # Check if camera opened successfully
   if (cap.isOpened()== False): 
     print("Error opening video stream or file")
-
-  # Create an instance of the ImageProcessor
-  #image_processor = ImageProcessor(calibration_matrix, calibration_distortion)
 
   print('Press q to dismiss or wait for the video to end')
   # Read until video is completed
@@ -230,7 +207,7 @@ def handle_video(fileName):
     if ret == True:
       #Process the frame
       frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-      processed_frame = process_image(frame_rgb)
+      processed_frame = process_image(frame_rgb, color_space)
       frame_bgr = cv2.cvtColor(processed_frame, cv2.COLOR_RGB2BGR)
 
       # Display the processed frame in a window
@@ -257,15 +234,22 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('-i', '--input', nargs='+', type=str, help='The input file(s)')
 parser.add_argument('-o', '--output', nargs='?', type=str, help='The output directory')
+parser.add_argument('-c', '--color', nargs='?', type=str, help='The color space')
 
 # Get the arguments
 args = parser.parse_args()
 
-# Get the calibration information
-#print("Calibrating the camera...")
-#camera_calibrator = CameraCalibrator(calibration_source)
-#matrix, distortion = camera_calibrator.calibrate()
-#print("Done.")
+if args.color is None:
+  color_space = 'RGB'
+else:
+  color_space = args.color
+
+
+with open('feature_scaler'+color_space+'.pkl', 'rb') as fid:
+  feature_scaler = pickle.load(fid)
+
+with open('classifier'+color_space+'.pkl', 'rb') as fid:
+  svc_classifier = pickle.load(fid)
 
 # Process the test image(s)
 for input_file in args.input:
@@ -274,13 +258,13 @@ for input_file in args.input:
 
   if extension == ".jpg":
     print("Processing Image " + input_file)
-    handle_image(input_file, args.output)
+    handle_image(input_file, args.output, color_space)
   elif extension == ".png":
     print("Processing Image " + input_file)
-    handle_image(input_file, args.output)
+    handle_image(input_file, args.output, color_space)
   elif extension == ".mp4":
     print("Processing Video " + input_file)
-    handle_video(input_file)
+    handle_video(input_file, color_space)
   else:
     print("Unknown extension: " + extension)
 
