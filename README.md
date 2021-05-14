@@ -23,8 +23,8 @@ I tried training the classifier using all of the color spaces.  The accuracy of 
 Because of the higher accuracy, I chose to use the LUV color space.
 
 ## Sliding Window Search
-Describe how (and identify where) you implemented a sliding window search.
-How did you decide what scales to search and how much to overlap windows?
+The code creates overlapping windows within the image, each of which is tested to see if there is a car present.  To improve performace, only the bottom half of each image is analyzed with the exception of the bottom 10% of the image which is ignored because of the likely presence of the hood of the drive car.  Because the training images were all 64 by 64 pixels, each window is also 64 by 64 pixels.  By setting the overlap to 50%, half of one image is combined with half of the next to create a whole image.
+
 Show some examples of test images to demonstrate your pipeline is working.
 How did you optimize the performance of your classifier?
 

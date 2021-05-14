@@ -1,0 +1,24 @@
+# Vehicle_Tracking_and_Detection/train_classifier.py: 4,5
+# Vehicle_Tracking_and_Detection/vehicle_tracking.py: 7
+matplotlib == 3.1.2
+
+# Vehicle_Tracking_and_Detection/common.py: 2
+# Vehicle_Tracking_and_Detection/train_classifier.py: 6
+# Vehicle_Tracking_and_Detection/vehicle_tracking.py: 6
+numpy == 1.17.4
+
+# Vehicle_Tracking_and_Detection/common.py: 1
+# Vehicle_Tracking_and_Detection/train_classifier.py: 7
+# Vehicle_Tracking_and_Detection/vehicle_tracking.py: 1
+opencv_python == 4.5.1.48
+
+# Vehicle_Tracking_and_Detection/common.py: 3
+# Vehicle_Tracking_and_Detection/train_classifier.py: 8
+# Vehicle_Tracking_and_Detection/vehicle_tracking.py: 9
+scikit_image == 0.18.1
+
+# Vehicle_Tracking_and_Detection/vehicle_tracking.py: 8
+scipy == 1.6.3
+
+# Vehicle_Tracking_and_Detection/train_classifier.py: 9,10,11
+sklearn == 0.0

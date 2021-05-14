@@ -9,6 +9,9 @@ from scipy.ndimage.measurements import label
 from skimage.feature import hog
 import common
 
+#
+#   Generate a set of overlapping windows 
+#
 def slide_window(img, x_start_stop=[None, None], y_start_stop=[None, None], 
                  xy_window=(64, 64), xy_overlap=(0.5, 0.5)):
    
@@ -24,10 +27,12 @@ def slide_window(img, x_start_stop=[None, None], y_start_stop=[None, None],
     window_list = []
     image_width_x = x_start_stop[1] - x_start_stop[0]
     image_width_y = y_start_stop[1] - y_start_stop[0]
-     
+
+    # Figure out how many windows will be created
     windows_x = np.int(1 + (image_width_x - xy_window[0]) / (xy_window[0] * xy_overlap[0]))
     windows_y = np.int(1 + (image_width_y - xy_window[1]) / (xy_window[1] * xy_overlap[1]))
     
+    # Create each window
     for i in range(0, windows_y):
         y_start = y_start_stop[0] + np.int(i * xy_window[1] * xy_overlap[1])
         for j in range(0, windows_x):
@@ -56,7 +61,8 @@ def find_cars(image, windows, color_space):
     return car_seen_windows
 
 #
-#   Extract all HOG features at once, and then
+#   Extract all HOG features at once, and then examine each block of data in the
+#   region of interest.  ** Doesn't seem to work as well, yet **
 #
 def find_cars3(image, windows, cspace):
   car_seen_windows = []
@@ -68,7 +74,7 @@ def find_cars3(image, windows, cspace):
 
   nxblocks = (region_of_interest.shape[1] // 8) - 1
   nyblocks = (region_of_interest.shape[0] // 8) - 1
-  nxsteps = (nxblocks - 7) // 2
+  nxsteps = (nxblocks - 8) // 2
   nysteps = (nyblocks - 8) // 2
 
   ch0 = common.extract_hog_features(region_of_interest[:,:,0])
@@ -162,7 +168,9 @@ def process_image(image, color_space):
   heat = apply_threshold(heat, 2)
   heatmap = np.clip(heat, 0, 255)
   labels = label(heatmap)
-  return draw_labeled_bboxes(np.copy(image), labels)
+  final_image = draw_labeled_bboxes(np.copy(image), labels)
+
+  return final_image
 
 #
 # handle_image runs the pipeline on a single, undistorted image
@@ -180,6 +188,7 @@ def handle_image(fileName, output_dir, color_space):
     print('Press any key to dismiss')
     plt.show()
   else:
+    processed_image = cv2.cvtColor(processed_image, cv2.COLOR_RGB2BGR)
     # Save the image to the output_dir
     output_file = os.path.join(output_dir, os.path.basename(fileName))
     print('Saving image to %s'%output_file)
