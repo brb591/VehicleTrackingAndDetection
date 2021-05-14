@@ -25,16 +25,23 @@ Because of the higher accuracy, I chose to use the LUV color space.
 ## Sliding Window Search
 The code creates overlapping windows within the image, each of which is tested to see if there is a car present.  To improve performace, only the bottom half of each image is analyzed with the exception of the bottom 10% of the image which is ignored because of the likely presence of the hood of the drive car.  Because the training images were all 64 by 64 pixels, each window is also 64 by 64 pixels.  By setting the overlap to 50%, half of one image is combined with half of the next to create a whole image.
 
-Show some examples of test images to demonstrate your pipeline is working.
-How did you optimize the performance of your classifier?
+## Pipeline Testing Output
+The directory ```test_output``` contains images that are the result of running the pipeline on test images that have been used throughout past class assignments.
+
+## Optimizing Classifier
+I attempted to optimize the classifier by extracting all HOG features at once and then extracting a subset array for each window that was processed.  This method needs further refinement to be good, as it appears to have a higher rate of false positives.  By adding ```-m optimized``` to the command instruction when using the vehicle tracking program, the optimized classifier is used.  Otherwise, the standard classifier is used.
 
 ## Video Implementation
-Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video.
-Describe how (and identify where) you implemented some kind of filter for false positives and some method for combining overlapping bounding boxes.
+The ```vehicle_tracking.py``` program doesn't save output videos, it only run them and displays the result on screen.  The performance of the optimized classifier does not appar to be worth it.
+
+## Filtering and Reducing False Positives
+The output of the classifier can include a lot of false positives, so there is a heatmap function to reduce them.  This works by taking a blank image and incrementing the pixel values on the blank image for each of the pixels in every window that is classified as having a car.
+
+Once all "found" windows have been processed, a threshold is applied to the heatmap.  Only those pixels that have been marked as being "found" more than once are kept, reducing single instances of false positives.
 
 ## Run The Vehicle Tracking Code
 ```
-python3 vehicle_tracking.py -i <input file (image or video)> -c <color space (RGB is default)> -o <output file>
+python3 vehicle_tracking.py -i <input file (image or video)> -c <color space (RGB is default)> -o <output file> -m <optimized (default is standard)>
 ```
 
 ## Train The Classifier
@@ -43,6 +50,6 @@ python3 train_classifier.py <color space>
 ```
 
 ## Discussion
-Briefly discuss any problems/issues you faced in your implementation of this project.
-Where will your pipeline likely fail?
-What could you do to make it more robust?
+Finding combinations of parameters to feature extraction that resulted in improvements was a challenge.  I expected to see different results.  
+
+The pipeline did not seem to work well with parts of the image that were not on the road.  While I specified a region of interest that excluded the top half of the image, the bottom half frequently contained trees and other shapes that included colors and gradients that matched with cars.  One way to improve this would be to use some of the lane tracking techniques to find the entire road and then limit the region of interest to that area.  This would be more difficult as the windowing techniques assume that the region of interest is a rectangle.

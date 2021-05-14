@@ -161,8 +161,11 @@ def apply_threshold(heatmap, threshold):
 #     contain cars.  Than apply the heat map and draw
 #     a rectangle around the identified cars.
 #
-def process_image(image, color_space):
-  windows_with_cars = find_cars(image, slide_window(image), color_space)
+def process_image(image, color_space, method):
+  if method == 'optimized':
+    windows_with_cars = find_cars3(image, slide_window(image), color_space)
+  else:
+    windows_with_cars = find_cars(image, slide_window(image), color_space)
   heat = np.zeros_like(image[:,:,0]).astype(np.float)
   heat = add_heat(heat, windows_with_cars)
   heat = apply_threshold(heat, 2)
@@ -176,12 +179,12 @@ def process_image(image, color_space):
 # handle_image runs the pipeline on a single, undistorted image
 #
 #
-def handle_image(fileName, output_dir, color_space):
+def handle_image(fileName, output_dir, color_space, method):
   # Get the image
   image = cv2.imread(fileName)
   image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-  processed_image = process_image(image_rgb, color_space)
+  processed_image = process_image(image_rgb, color_space, method)
   
   if output_dir is None:
     plt.imshow(processed_image)
@@ -199,7 +202,7 @@ def handle_image(fileName, output_dir, color_space):
 # handle_video runs the pipeline on each undistorted frame of a video file
 #
 #
-def handle_video(fileName, color_space):
+def handle_video(fileName, color_space, method):
   # Create a VideoCapture object and read from input file
   # If the input is the camera, pass 0 instead of the video file name
   cap = cv2.VideoCapture(fileName)
@@ -216,7 +219,7 @@ def handle_video(fileName, color_space):
     if ret == True:
       #Process the frame
       frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-      processed_frame = process_image(frame_rgb, color_space)
+      processed_frame = process_image(frame_rgb, color_space, method)
       frame_bgr = cv2.cvtColor(processed_frame, cv2.COLOR_RGB2BGR)
 
       # Display the processed frame in a window
@@ -244,6 +247,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-i', '--input', nargs='+', type=str, help='The input file(s)')
 parser.add_argument('-o', '--output', nargs='?', type=str, help='The output directory')
 parser.add_argument('-c', '--color', nargs='?', type=str, help='The color space')
+parser.add_argument('-m', '--method', nargs='?', type=str, help='Use the optimized or standard classifier')
 
 # Get the arguments
 args = parser.parse_args()
@@ -267,13 +271,13 @@ for input_file in args.input:
 
   if extension == ".jpg":
     print("Processing Image " + input_file)
-    handle_image(input_file, args.output, color_space)
+    handle_image(input_file, args.output, color_space, args.method)
   elif extension == ".png":
     print("Processing Image " + input_file)
-    handle_image(input_file, args.output, color_space)
+    handle_image(input_file, args.output, color_space, args.method)
   elif extension == ".mp4":
     print("Processing Video " + input_file)
-    handle_video(input_file, color_space)
+    handle_video(input_file, color_space, args.method)
   else:
     print("Unknown extension: " + extension)
 
